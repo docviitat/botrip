@@ -1,6 +1,8 @@
+// components/ProductCard.tsx
 'use client';
 import { useState } from 'react';
-// import { AlertCircle } from 'lucide-react';
+// import { AlertCircle, Loader2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 type Product = {
   id: number;
@@ -20,17 +22,45 @@ interface ProductCardProps {
 }
 
 export default function ProductCard({ product, type, onUpdate }: ProductCardProps) {
+  const router = useRouter();
   const [loading, setLoading] = useState<{ [key: string]: boolean }>({
     view: false,
     purchase: false
   });
   const [error, setError] = useState<string | null>(null);
 
-  const handleAction = async (endpoint: string) => {
+  const handleViewDetails = async () => {
     try {
-      setLoading(prev => ({ ...prev, [endpoint]: true }));
+      setLoading(prev => ({ ...prev, view: true }));
       setError(null);
-      const response = await fetch(`http://localhost:5000/api/${endpoint}`, {
+
+      // Update views count
+      const response = await fetch(`http://localhost:5000/api/update-views`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ product_id: product.id, product_type: type }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update views');
+      }
+
+      // Navigate to details page
+      router.push(`/${type}/${product.id}`);
+
+      onUpdate();
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'An error occurred');
+    } finally {
+      setLoading(prev => ({ ...prev, view: false }));
+    }
+  };
+
+  const handlePurchase = async () => {
+    try {
+      setLoading(prev => ({ ...prev, purchase: true }));
+      setError(null);
+      const response = await fetch(`http://localhost:5000/api/purchase`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ product_id: product.id, product_type: type }),
@@ -44,7 +74,7 @@ export default function ProductCard({ product, type, onUpdate }: ProductCardProp
     } catch (error) {
       setError(error instanceof Error ? error.message : 'An error occurred');
     } finally {
-      setLoading(prev => ({ ...prev, [endpoint]: false }));
+      setLoading(prev => ({ ...prev, purchase: false }));
     }
   };
 
@@ -59,7 +89,7 @@ export default function ProductCard({ product, type, onUpdate }: ProductCardProp
         <div className="flex justify-between items-center mb-4">
           <span className="text-lg font-bold">
             ${product.price.toLocaleString()}
-            {type === 'hotel' ? '/noche' : ''}
+            {type === 'hotel' ? '/night' : ''}
           </span>
           <div className="flex items-center">
             <span className="text-yellow-500 mr-1">★</span>
@@ -68,8 +98,8 @@ export default function ProductCard({ product, type, onUpdate }: ProductCardProp
         </div>
 
         <div className="flex justify-between text-sm text-gray-500 mb-4">
-          <span>{product.views.toLocaleString()} vistas</span>
-          <span>{product.purchases.toLocaleString()} compras</span>
+          <span>{product.views.toLocaleString()} views</span>
+          <span>{product.purchases.toLocaleString()} purchases</span>
         </div>
 
         {error && (
@@ -81,27 +111,27 @@ export default function ProductCard({ product, type, onUpdate }: ProductCardProp
 
         <div className="flex justify-between gap-4">
           <button
-            onClick={() => handleAction('update-views')}
+            onClick={handleViewDetails}
             disabled={loading.view || loading.purchase}
             className="flex-1 bg-gray-100 text-gray-700 py-2 px-4 rounded hover:bg-gray-200 transition-colors disabled:opacity-50"
           >
             {loading.view ? (
-              <h1>Cargandooo</h1>
               // <Loader2 className="w-4 h-4 animate-spin mx-auto" />
+              <h1>Cargandooo</h1>
             ) : (
-              'Ver detalles'
+              'View Details'
             )}
           </button>
           <button
-            onClick={() => handleAction('purchase')}
+            onClick={handlePurchase}
             disabled={loading.view || loading.purchase}
             className="flex-1 bg-blue-600 text-white py-2 px-4 rounded hover:bg-blue-700 transition-colors disabled:opacity-50"
           >
             {loading.purchase ? (
-              <h1>Cargandooo</h1>
               // <Loader2 className="w-4 h-4 animate-spin mx-auto" />
+              <h1>Cargandooo</h1>
             ) : (
-              'Comprar'
+              'Purchase'
             )}
           </button>
         </div>
