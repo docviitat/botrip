@@ -9,7 +9,6 @@ from sqlalchemy.exc import ProgrammingError
 from datetime import datetime
 import pandas as pd
 import numpy as np
-from sklearn.ensemble import RandomForestClassifier
 
 app = Flask(__name__)
 CORS(app)
@@ -28,6 +27,7 @@ class Hotel(db.Model):
     rating = db.Column(db.Float, nullable=False)
     views = db.Column(db.Integer, default=0)
     purchases = db.Column(db.Integer, default=0)
+    image = db.Column(db.String, default="")
 
 class Package(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -37,6 +37,7 @@ class Package(db.Model):
     rating = db.Column(db.Float, nullable=False)
     views = db.Column(db.Integer, default=0)
     purchases = db.Column(db.Integer, default=0)
+    image = db.Column(db.String, default="")
 
 def initialize_database():
     with app.app_context():
@@ -62,21 +63,25 @@ def initialize_data():
     try:
         initialize_database()
         
+        if Hotel.query.first() or Package.query.first():
+            print("Datos ya inicializados. Saltando la inicialización.")
+            return
+        
         # Rest of your initialization code remains the same
         hotels_data = [
-            Hotel(name='Grand Hotel Marina', location='Barcelona', price=200, rating=4.5, views=100, purchases=20),
-            Hotel(name='Mountain View Resort', location='Swiss Alps', price=350, rating=4.8, views=80, purchases=15),
-            Hotel(name='Sunset Beach Hotel', location='Maldives', price=450, rating=4.7, views=120, purchases=25),
-            Hotel(name='City Center Inn', location='Tokyo', price=150, rating=4.2, views=60, purchases=10),
-            Hotel(name='Lake Paradise Hotel', location='Lake Como', price=300, rating=4.6, views=90, purchases=18)
+            Hotel(name='Grand Hotel Marina', location='Barcelona', price=200, rating=4.5, views=100, purchases=20, image='https://i.pinimg.com/736x/6d/86/58/6d86581d8d0a8497156a058f909acb53.jpg'),
+            Hotel(name='Mountain View Resort', location='Swiss Alps', price=350, rating=4.8, views=80, purchases=15, image='https://i.pinimg.com/736x/ff/91/5a/ff915aa0509250831cd3f65de4a0a801.jpg'),
+            Hotel(name='Sunset Beach Hotel', location='Maldives', price=450, rating=4.7, views=120, purchases=25, image='https://i.pinimg.com/736x/bc/95/92/bc95924cc3a4a6ed43c36ae50a513a2e.jpg'),
+            Hotel(name='City Center Inn', location='Tokyo', price=150, rating=4.2, views=60, purchases=10, image='https://i.pinimg.com/736x/0e/3b/7c/0e3b7c85380dcecd002bc7edf0c9bb7b.jpg'),
+            Hotel(name='Lake Paradise Hotel', location='Lake Como', price=300, rating=4.6, views=90, purchases=18, image='https://i.pinimg.com/736x/c2/85/f2/c285f2820a193b8d1fd3f3024dcceda8.jpg')
         ]
         
         packages_data = [
-            Package(name='European Adventure', duration='7 days', price=1500, rating=4.6, views=150, purchases=30),
-            Package(name='Tropical Paradise', duration='10 days', price=2000, rating=4.7, views=180, purchases=35),
-            Package(name='Asian Discovery', duration='14 days', price=2500, rating=4.8, views=200, purchases=40),
-            Package(name='African Safari', duration='8 days', price=3000, rating=4.9, views=220, purchases=45),
-            Package(name='American Road Trip', duration='12 days', price=1800, rating=4.5, views=160, purchases=32)
+            Package(name='European Adventure', duration='7 days', price=1500, rating=4.6, views=150, purchases=30, image='https://i.pinimg.com/736x/9a/45/ed/9a45edf377d0753786dea69020d9b112.jpg'),
+            Package(name='Tropical Paradise', duration='10 days', price=2000, rating=4.7, views=180, purchases=35, image='https://i.pinimg.com/736x/06/46/80/064680fc1af8adc2d6028e02e26ca303.jpg'),
+            Package(name='Asian Discovery', duration='14 days', price=2500, rating=4.8, views=200, purchases=40, image='https://i.pinimg.com/736x/87/55/83/87558355ed8ec5a0ee91ca45a25a5688.jpg'),
+            Package(name='African Safari', duration='8 days', price=3000, rating=4.9, views=220, purchases=45, image='https://i.pinimg.com/736x/f9/49/32/f94932e5a4a434fbf75132541f2e012a.jpg'),
+            Package(name='American Road Trip', duration='12 days', price=1800, rating=4.5, views=160, purchases=32, image='https://i.pinimg.com/736x/f4/04/d3/f404d3e6b96fe02851b14a0d5b2ef4c2.jpg')
         ]
         
         db.session.add_all(hotels_data)
@@ -119,7 +124,8 @@ def get_hotels():
         'price': h.price,
         'rating': h.rating,
         'views': h.views,
-        'purchases': h.purchases
+        'purchases': h.purchases,
+        'image': h.image
     } for h in hotels])
 
 @app.route('/api/packages', methods=['GET'])
@@ -132,7 +138,8 @@ def get_packages():
         'price': p.price,
         'rating': p.rating,
         'views': p.views,
-        'purchases': p.purchases
+        'purchases': p.purchases,
+        'image': p.image
     } for p in packages])
 
 @app.route('/api/update-views', methods=['POST'])
@@ -180,7 +187,7 @@ def register_purchase():
         "success": True,
         "new_purchases": product.purchases
     })
-# I BELIEVE THE ISSUE LIES ON THE LACK OF THE COLUMN PROCUTS TYPE OR SOME
+
 @app.route('/api/recommendations/<product_type>', methods=['GET'])
 def get_recommendations(product_type):
     if product_type not in ["hotel", "package"]:
@@ -197,6 +204,7 @@ def get_recommendations(product_type):
         'rating': p.rating,
         'views': p.views,
         'purchases': p.purchases,
+        'image': p.image,
         'location' if product_type == "hotel" else 'duration': 
             p.location if product_type == "hotel" else p.duration
     } for p in products])

@@ -4,7 +4,6 @@ gunicorn==21.2.0
 pytest==7.4.2
 requests==2.31.0
 python-dotenv==1.0.0
-ollama
 pandas==2.2.3
 scikit-learn==1.6.0
 numpy==2.2.1

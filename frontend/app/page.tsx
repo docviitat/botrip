@@ -3,7 +3,7 @@ import Link from "next/link";
 export default function Home() {
   return (
     <>
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen custom-bg">
       <main className="container mx-auto px-4 py-8">
         <h1 className="text-4xl font-bold text-center mb-8">
           Sistema de Recomendaciones Turísticas

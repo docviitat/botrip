@@ -1,7 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import ProductCard from './ProductCard'; // Corregido: importación directa del componente
-// import { Loader2 } from 'lucide-react';
+import ProductCard from './ProductCard'; 
 
 interface Product {
   id: number;
@@ -12,6 +11,7 @@ interface Product {
   rating: number;
   views: number;
   purchases: number;
+  image: string
 }
 
 interface ProductListProps {
@@ -48,7 +48,7 @@ export default function ProductList({ type, endpoint, title }: ProductListProps)
   if (loading) {
     return (
       <div className="flex justify-center items-center p-8">
-        {/* <Loader2 className="w-8 h-8 animate-spin text-blue-600" /> */}
+        <h1>Cargandoooooo</h1>
       </div>
     );
   }
