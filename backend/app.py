@@ -1,4 +1,3 @@
-# app.py
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
@@ -9,16 +8,16 @@ from sqlalchemy.exc import ProgrammingError
 from datetime import datetime
 import pandas as pd
 import numpy as np
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.preprocessing import StandardScaler
 
 app = Flask(__name__)
 CORS(app)
 
-# Database configuration
 app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://postgres:password@db_botrip:5432/db_botrip'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
-# Models
 class Hotel(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
@@ -43,7 +42,6 @@ def initialize_database():
     with app.app_context():
         engine = create_engine(app.config['SQLALCHEMY_DATABASE_URI'])
         
-        # Create schema if it doesn't exist
         with engine.connect() as connection:
             try:
                 connection.execute(text('CREATE SCHEMA IF NOT EXISTS public'))
@@ -51,10 +49,9 @@ def initialize_database():
             except ProgrammingError:
                 connection.rollback()
         
-        # Drop all tables and create them again
         try:
-            db.drop_all()  # Drop all existing tables
-            db.create_all()  # Create new tables
+            db.drop_all()  
+            db.create_all() 
             print("Database initialized successfully")
         except SQLAlchemyError as e:
             print(f"Error during database initialization: {str(e)}")
@@ -67,7 +64,6 @@ def initialize_data():
             print("Datos ya inicializados. Saltando la inicialización.")
             return
         
-        # Rest of your initialization code remains the same
         hotels_data = [
             Hotel(name='Grand Hotel Marina', location='Barcelona', price=200, rating=4.5, views=100, purchases=20, image='https://i.pinimg.com/736x/6d/86/58/6d86581d8d0a8497156a058f909acb53.jpg'),
             Hotel(name='Mountain View Resort', location='Swiss Alps', price=350, rating=4.8, views=80, purchases=15, image='https://i.pinimg.com/736x/ff/91/5a/ff915aa0509250831cd3f65de4a0a801.jpg'),
@@ -100,14 +96,12 @@ with app.app_context():
 def health_check():
     with app.app_context():
         try:
-            # Execute a simple query to check the connection
             db.session.execute(text('SELECT 1'))
             return jsonify({
                 "status": "healthy",
                 "message": "Connection successful"
             })
         except SQLAlchemyError as e:
-            # Return the error message if connection fails
             return jsonify({
                 "status": "unhealthy",
                 "message": f"Connection failed! ERROR: {str(e)}"
@@ -196,7 +190,6 @@ def get_recommendations(product_type):
     Model = Hotel if product_type == "hotel" else Package
     products = Model.query.all()
     
-    # Convert to DataFrame for scoring
     df = pd.DataFrame([{
         'id': p.id,
         'name': p.name,
@@ -209,11 +202,61 @@ def get_recommendations(product_type):
             p.location if product_type == "hotel" else p.duration
     } for p in products])
     
-    # Calculate score
-    df['score'] = df['views'] * 0.3 + df['purchases'] * 0.7
-    recommended = df.nlargest(5, 'score')
+    features = ['price', 'rating', 'views', 'purchases']
+    X = df[features].copy()
     
-    return jsonify(recommended.to_dict(orient='records'))
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X)
+    
+    model = RandomForestRegressor(
+        n_estimators=100,
+        max_depth=3,
+        random_state=42,
+        n_jobs=-1
+    )
+    
+    y = df['views'] * 0.3 + df['purchases'] * 0.7
+    
+    model.fit(X_scaled, y)
+    
+    feature_importance = dict(zip(features, model.feature_importances_))
+    
+    df['ml_score'] = model.predict(X_scaled)
+    
+    df['final_score'] = (
+        df['ml_score'] * 0.7 +  # ML prediction weight
+        (df['views'] * 0.3 + df['purchases'] * 0.7) * 0.3  # Original score weight
+    )
+    
+    recommended = df.nlargest(5, 'final_score')
+    
+    recommendations = []
+    for _, row in recommended.iterrows():
+        explanation = []
+        if row['rating'] >= 4.5:
+            explanation.append("High customer rating")
+        if row['purchases'] > df['purchases'].mean():
+            explanation.append("Popular choice")
+        if row['views'] > df['views'].mean():
+            explanation.append("Frequently viewed")
+        if row['price'] < df['price'].mean():
+            explanation.append("Good value")
+            
+        recommendations.append({
+            'id': int(row['id']),
+            'name': row['name'],
+            'price': float(row['price']),
+            'rating': float(row['rating']),
+            'views': int(row['views']),
+            'purchases': int(row['purchases']),
+            'image': row['image'],
+            'location' if product_type == "hotel" else 'duration': 
+                row['location' if product_type == "hotel" else 'duration'],
+            'recommendation_reasons': explanation,
+            'feature_importance': feature_importance
+        })
+    
+    return jsonify(recommendations)
 
 if __name__ == '__main__':
     app.run(debug=True)
